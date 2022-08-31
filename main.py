@@ -1,6 +1,6 @@
 import pygame
 from sys import exit
-
+from random import randint
 width = 800
 height = 400
 game_active = False
@@ -14,6 +14,29 @@ def display_score():
     screen.blit(score_surf, score_rect)
     return current_time
 
+def obstacle_movement(obstacle_list):
+    if obstacle_list:
+        for obstacle_rect in obstacle_list:
+
+            obstacle_rect.x -= 5
+            if obstacle_rect.bottom == 300:
+                screen.blit(snail_surf, obstacle_rect)
+            else:
+                screen.blit(fly_surf, obstacle_rect)
+
+
+        obstacle_list = [obstacle for obstacle in obstacle_list if obstacle.x > -100]
+        return obstacle_list
+    else:
+        return []
+
+def collisions(player, obstacles):
+    if obstacles:
+        for obstacle_rect in obstacles:
+            if player.colliderect(obstacle_rect):
+                return False
+    return True
+
 
 pygame.init()
 screen = pygame.display.set_mode((width, height))
@@ -25,9 +48,14 @@ score = 0
 sky_surface = pygame.image.load('graphics/Sky.png').convert()
 ground_surface = pygame.image.load('graphics/ground.png').convert()
 
-snail_surf = pygame.image.load('graphics/snail/snail1.png').convert_alpha()
-snail_rect = snail_surf.get_rect(bottomright=(600, 300))
 
+# Obstacles
+snail_surf = pygame.image.load('graphics/snail/snail1.png').convert_alpha()
+fly_surf = pygame.image.load('graphics/Fly/Fly1.png').convert_alpha()
+
+obstacles_rect_list = []
+
+#################################################################
 player_surf = pygame.image.load('graphics/Player/player_walk_1.png').convert_alpha()
 player_rect = player_surf.get_rect(midbottom=(80, 300))
 player_gravity = 0
@@ -42,6 +70,10 @@ game_name_rect = game_name.get_rect(center=(400, 80))
 game_message = font.render('Press space to play again...', False, (111, 196, 169))
 game_message_rect = game_message.get_rect(center=(400, 340))
 
+# Timer
+obstacle_timer = pygame.USEREVENT + 1
+pygame.time.set_timer(obstacle_timer, 1500)
+
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -54,23 +86,32 @@ while True:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and player_rect.bottom >= 300:
                     player_gravity = -22
+            if event.type == obstacle_timer:
+                if randint(0, 2):
+                    obstacles_rect_list.append(snail_surf.get_rect(bottomright=(randint(900, 1100), 300)))
+                else:
+                    obstacles_rect_list.append(fly_surf.get_rect(bottomright=(randint(900, 1100), 210)))
+
+
+
         else:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 game_active = True
-                snail_rect.left = 800
+
                 start_time = int(pygame.time.get_ticks() / 1000)
+
 
     if game_active:
         screen.blit(sky_surface, (0, 0))
         screen.blit(ground_surface, (0, 300))
         score = display_score()
 
-        snail_rect.x -= 4
 
-        if snail_rect.right <= 0:
-            snail_rect.left = 800
 
-        screen.blit(snail_surf, snail_rect)
+
+
+        # Obstacle movement
+        obstacles_rect_list = obstacle_movement(obstacles_rect_list)
 
         player_gravity += 1
         player_rect.y += player_gravity
@@ -78,11 +119,12 @@ while True:
             player_rect.bottom = 300
         screen.blit(player_surf, player_rect)
 
-        if snail_rect.colliderect(player_rect):
-            game_active = False
+        game_active = collisions(player_rect, obstacles_rect_list)
     else:
         screen.fill((94, 129, 162))
         screen.blit(player_stand, player_stand_rect)
+
+        obstacles_rect_list.clear()
 
         score_message = font.render(f"Your Score: {score}", False, (111, 196, 169))
         score_message_rect = score_message.get_rect(center=(400, 330))
